@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     df_met_all = pd.concat(df_met)
 
-    df_met_all.to_csv(f'{dir}/metadata_table.csv')
+    df_met_all.to_csv(f'{dir}/metadata_table.csv', sep=';', index=False)
 
     # Merge all variables attributes into one table
 
@@ -97,11 +97,11 @@ if __name__ == '__main__':
         dat_var.append(df_row)
 
     var_all = pd.concat(dat_var)
-    var_all.to_csv(f'{dir}/var_attrs_table.csv')
+    var_all.to_csv(f'{dir}/var_attrs_table.csv', sep=';', index=False)
     # Merge the metadata table with the attributes table
 
     full_table = var_all.merge(df_met_all, left_on=var_all.index, right_on=df_met_all.index)
-    full_table.to_csv(f'{dir}/full_meta_attrs_table.csv')
+    full_table.to_csv(f'{dir}/full_meta_attrs_table.csv', sep=';', index=False)
     _log.info(f"merged metadata and attributes ")
     # Create a smaller, more user friendly table
 
@@ -142,7 +142,7 @@ if __name__ == '__main__':
         # and add them in variable total
         table.science_variables[i] = [i for i in table.science_variables[i] if i not in nav_var]
 
-    table.to_csv(f'{dir}/users_table.csv')
+    table.to_csv(f'{dir}/users_table.csv', sep=';', index=False)
 
     _log.info("End processing")
 
