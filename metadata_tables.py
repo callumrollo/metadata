@@ -127,10 +127,10 @@ if __name__ == '__main__':
         table.optics[i] = d['optics']
         if 'irradiance' in d:
             table.irradiance[i] = d['irradiance']
-        if 'ad2cp' in d:
-            table.irradiance[i] = d['ad2cp']
+        if 'AD2CP' in d:
+            table.ad2cp[i] = d['AD2CP']
         if 'nitrate' in d:
-            table.irradiance[i] = d['nitrate']
+            table.nitrate[i] = d['nitrate']
 
         nav_var = {'profile_index', 'rowSize', 'latitude', 'longitude', 'time', 'depth',
                    'angular_cmd', 'angular_pos', 'ballast_cmd', 'ballast_pos', 'desired_heading',
