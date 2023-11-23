@@ -48,9 +48,11 @@ if __name__ == '__main__':
     df_met = []
     _log.info(f"processing metadata files")
     for dataset_id in df_datasets.index:
-
         dictrow = {}
         for key, val in ds_meta[dataset_id].items():
+            # If the value is a method (like dataset.close) do not include it
+            if callable(val):
+                continue
             if type(val) is dict:
                 if val == {}:
                     continue
