@@ -5,7 +5,6 @@ import os
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-sys.path.append(f'/home/callum/Documents/community/erddap_demo')
 
 dir = os.getcwd()
 sys.path.append(f'{dir}/erddap_demo')
@@ -47,7 +46,6 @@ if __name__ == '__main__':
     df_datasets = df_datasets[df_datasets.index.str[:3] == "nrt"]
     df_datasets = df_datasets.drop('nrt_SEA057_M75')
     df_datasets = df_datasets.drop('nrt_SEA070_M29')
-    df_datasets = df_datasets.iloc[:5, :]
 
     ds_meta = {}
     for dataset_id in tqdm(df_datasets.index):
