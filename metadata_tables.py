@@ -85,7 +85,7 @@ if __name__ == '__main__':
         df_met.append(dfrow)
 
     df_met_all = pd.concat(df_met)
-    write_csv(df_met_all, 'metadata_table.csv')
+    write_csv(df_met_all, 'metadata_table')
 
     # Merge all variables attributes into one table
 
@@ -109,17 +109,17 @@ if __name__ == '__main__':
         dat_var.append(df_row)
 
     var_all = pd.concat(dat_var)
-    write_csv(var_all, 'var_attrs_table.csv')
+    write_csv(var_all, 'var_attrs_table')
     # Merge the metadata table with the attributes table
 
     full_table = var_all.merge(df_met_all, left_on=var_all.index, right_on=df_met_all.index)
-    write_csv(full_table, 'full_meta_attrs_table.csv')
+    write_csv(full_table, 'full_meta_attrs_table')
     _log.info(f"merged metadata and attributes ")
     # Create a smaller, more user friendly table
 
     table = pd.DataFrame(columns=['glider_serial', 'deployment_id', 'basin', 'deployment_start', 'deployment_end',
                                   'available_variables', 'science_variables', 'ctd', 'oxygen', 'optics', 'ad2cp',
-                                  'irradiance', 'nitrate'])
+                                  'irradiance', 'nitrate', 'datasetID'])
     missions = df_datasets.index
     dic = ds_meta
     table.deployment_id = range(0, len(missions))
@@ -132,6 +132,7 @@ if __name__ == '__main__':
         table.deployment_start[i] = d["deployment_start"][:10]
         table.deployment_end[i] = d["deployment_end"][:10]
         table.basin[i] = d["basin"]
+        table.datasetID[i] = d["dataset_id"]
         table.available_variables[i] = d["variables"]
         table.science_variables[i] = d["variables"]
         table.ctd[i] = d['ctd']
