@@ -5,12 +5,23 @@ import os
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
+sys.path.append(f'/home/callum/Documents/community/erddap_demo')
 
 dir = os.getcwd()
 sys.path.append(f'{dir}/erddap_demo')
 import utils
 import logging
 _log = logging.getLogger(__name__)
+
+
+def write_csv(df, name):
+    if not "datasetID" in list(df):
+        df["datasetID"] = df.index
+    df = df.convert_dtypes()
+    _log.info(f"write {name}.csv")
+    df.to_csv(f'{dir}/{name}.csv', sep=';', index=False)
+        
+
 if __name__ == '__main__':
     logf = 'metadata_processing.log'
     logging.basicConfig(filename=logf,
@@ -36,6 +47,8 @@ if __name__ == '__main__':
     df_datasets = df_datasets[df_datasets.index.str[:3] == "nrt"]
     df_datasets = df_datasets.drop('nrt_SEA057_M75')
     df_datasets = df_datasets.drop('nrt_SEA070_M29')
+    df_datasets = df_datasets.iloc[:5, :]
+
     ds_meta = {}
     for dataset_id in tqdm(df_datasets.index):
         ds_meta[dataset_id] = utils.get_meta(dataset_id)
@@ -74,8 +87,7 @@ if __name__ == '__main__':
         df_met.append(dfrow)
 
     df_met_all = pd.concat(df_met)
-
-    df_met_all.to_csv(f'{dir}/metadata_table.csv', sep=';', index=False)
+    write_csv(df_met_all, 'metadata_table.csv')
 
     # Merge all variables attributes into one table
 
@@ -99,11 +111,11 @@ if __name__ == '__main__':
         dat_var.append(df_row)
 
     var_all = pd.concat(dat_var)
-    var_all.to_csv(f'{dir}/var_attrs_table.csv', sep=';', index=False)
+    write_csv(var_all, 'var_attrs_table.csv')
     # Merge the metadata table with the attributes table
 
     full_table = var_all.merge(df_met_all, left_on=var_all.index, right_on=df_met_all.index)
-    full_table.to_csv(f'{dir}/full_meta_attrs_table.csv', sep=';', index=False)
+    write_csv(full_table, 'full_meta_attrs_table.csv')
     _log.info(f"merged metadata and attributes ")
     # Create a smaller, more user friendly table
 
@@ -144,7 +156,7 @@ if __name__ == '__main__':
         # and add them in variable total
         table.science_variables[i] = [i for i in table.science_variables[i] if i not in nav_var]
 
-    table.to_csv(f'{dir}/users_table.csv', sep=';', index=False)
+    write_csv(table, 'users_table')
 
     _log.info("End processing")
 
