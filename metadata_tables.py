@@ -1,13 +1,11 @@
-#!/usr/bin/env python
-# coding: utf-8
 import sys
 import os
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-
-dir = os.getcwd()
-sys.path.append(f'{dir}/erddap_demo')
+import subprocess
+cwdir = os.getcwd()
+sys.path.append(f'{cwdir}/../erddap_demo')
 import utils
 import logging
 _log = logging.getLogger(__name__)
@@ -18,8 +16,10 @@ def write_csv(df, name):
         df["datasetID"] = df.index
     df = df.convert_dtypes()
     _log.info(f"write {name}.csv")
-    df.to_csv(f'{dir}/{name}.csv', sep=';', index=False)
-        
+    df.to_csv(f'{cwdir}/output/{name}.csv', sep=';', index=False)
+    subprocess.check_call(['/usr/bin/rsync', f'{cwdir}/output/{name}.csv', 'usrerddap@13.51.101.57:/media/data/meta'])
+    _log.info(f"sent '{cwdir}/output/{name}.csv to erddap")
+
 
 if __name__ == '__main__':
     logf = 'metadata_processing.log'
@@ -37,8 +37,6 @@ if __name__ == '__main__':
     e.dataset_id = "allDatasets"
     df_datasets = e.to_pandas(parse_dates=['minTime (UTC)', 'maxTime (UTC)'])
 
-    print(f"found {len(df_datasets)} datasets")
-
     # drop the allDatasets row and make the datasetID the index for easier reading
     df_datasets.set_index("datasetID", inplace=True)
     df_datasets.drop("allDatasets", inplace=True)
@@ -46,6 +44,9 @@ if __name__ == '__main__':
     df_datasets = df_datasets[df_datasets.index.str[:3] == "nrt"]
     df_datasets = df_datasets.drop('nrt_SEA057_M75')
     df_datasets = df_datasets.drop('nrt_SEA070_M29')
+
+    #df_datasets = df_datasets.head(3)
+    _log.info(f"found {len(df_datasets)} datasets")
 
     ds_meta = {}
     for dataset_id in tqdm(df_datasets.index):
@@ -158,7 +159,3 @@ if __name__ == '__main__':
     write_csv(table, 'users_table')
 
     _log.info("End processing")
-
-
-
-
