@@ -17,7 +17,7 @@ def write_csv(df, name):
     df = df.convert_dtypes()
     _log.info(f"write {name}.csv")
     df.to_csv(f'{cwdir}/output/{name}.csv', sep=';', index=False)
-    subprocess.check_call(['/usr/bin/rsync', f'{cwdir}/output/{name}.csv', 'usrerddap@136.243.54.252:/media/data/meta'])
+    subprocess.check_call(['/usr/bin/rsync', f'{cwdir}/output/{name}.csv', 'usrerddap@136.243.54.252:/data/meta'])
     _log.info(f"sent '{cwdir}/output/{name}.csv to erddap")
 
 
