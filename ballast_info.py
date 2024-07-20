@@ -75,18 +75,22 @@ def ballast_info(glider_datasets, threshold=420):
         #Average max and min pumping
         ballast_top_range=[]
         ballast_low_range=[]
-    
-        cross_over=0 #Reset crossover to 0 for new mission
+
+        # crossover
+        ballast = ds.ballast_pos.values
+        ballast = ballast[~np.isnan(ballast)]
+        ballast_pre = ballast.copy()[:-1]
+        ballast_post = ballast.copy()[1:]
+        ballast_pre[ballast_pre > threshold] = np.nan
+        ballast_post[ballast_post < threshold] = np.nan
+        ballast_diff = ballast_post - ballast_pre
+        cross_over = sum(ballast_diff > 0)
 
         #Create array of divenumbers in order for nrt datasets as all dives are not available. Remove duplicates and sort them
         dive_num=np.sort(np.array(list(set(ds.dive_num.values))))
         for i in dive_num:
             ds_dive=ds.sel(time=ds.dive_num==i)
-            for k in np.arange(len(ds_dive.time)):
-                if k+1 > len(ds_dive.time)-1: #Avoid errors with indexing k+1
-                    break
-                elif (ds_dive.ballast_pos.values[k]-threshold <0) and (ds_dive.ballast_pos.values[k+1]-threshold > 0): #Add a count to cross over threshold, always positive pumping (from below threshold to above)
-                    cross_over=cross_over+1
+
             ds_nav_state=ds_dive.sel(time=ds_dive.nav_state==117) #Select data for navstate 117 only (Glider going up) to avoid ballast surfacing values
         
             if len(ds_dive.sel(time=ds_dive.security_level>0).time) >0: #If there are alarms at this dive, do not include this in avg pumping max or min range
