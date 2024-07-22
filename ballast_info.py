@@ -1,32 +1,44 @@
 from erddapy import ERDDAP
+from pathlib import Path
 import numpy as np
 import pandas as pd
-import xarray as xr
 import utils
 import matplotlib.pyplot as plt
 
-def ballast_info(glider_serial=44, data_type='nrt', threshold=420):
+
+def get_glider_dataset_ids():
+    e = ERDDAP(server="https://erddap.observations.voiceoftheocean.org/erddap",
+               protocol="tabledap")
+
+    e.dataset_id = "allDatasets"
+    df_datasets = e.to_pandas()['datasetID']
+    df_glider_datasets = df_datasets[df_datasets.str.contains("SEA")]
+    return df_glider_datasets
+
+
+def select_datasets(glider_serial=None, mission_num=None, data_type='nrt'):
     '''
     inputs:
     glider_serial= xx
     data_type= 'nrt' or 'delayed'
-    threshold= volume in ml, default is 420 ml to check how many time volume goes from below this value to above
-
     '''
-    
-    e = ERDDAP(server="https://erddap.observations.voiceoftheocean.org/erddap",
-               protocol="tabledap")
-    
-    e.dataset_id  = "allDatasets"
-    df_datasets = e.to_pandas()['datasetID']
-    
-    if data_type=='nrt':
-        glider_datasets = df_datasets[df_datasets.str[:10] == 'nrt_SEA0'+str(glider_serial)].values
-    elif data_type=='delayed':
-        glider_datasets = df_datasets[df_datasets.str[:14] == 'delayed_SEA0'+str(glider_serial)].values
-    
+
+    df_datasets = get_glider_dataset_ids()
+    if glider_serial:
+        glider_num = str(glider_serial).zfill(3)
+        df_datasets = df_datasets[df_datasets.str.contains(f"SEA{glider_num}")]
+    if mission_num:
+        df_datasets = df_datasets[df_datasets.str.contains(f"M{mission_num}")]
+
+    if data_type == 'nrt':
+        df_datasets = df_datasets[df_datasets.str.contains(f"nrt")]
+    elif data_type == 'delayed':
+        df_datasets = df_datasets[df_datasets.str.contains(f"delayed")]
+    return df_datasets.values
+
+
+def ballast_info(glider_datasets, threshold=420):
     ds_dict = utils.download_glider_dataset(glider_datasets, nrt_only=False, variables=(['ballast_pos', 'time', 'dive_num', 'ballast_cmd', 'nav_state', 'security_level']))
-    
     #Max and min values for the full mission
     max_ballast=[]
     min_ballast=[]
@@ -63,22 +75,22 @@ def ballast_info(glider_serial=44, data_type='nrt', threshold=420):
         #Average max and min pumping
         ballast_top_range=[]
         ballast_low_range=[]
-    
-        cross_over=0 #Reset crossover to 0 for new mission
-    
+
+        # crossover
+        ballast = ds.ballast_pos.values
+        ballast = ballast[~np.isnan(ballast)]
+        ballast_pre = ballast.copy()[:-1]
+        ballast_post = ballast.copy()[1:]
+        ballast_pre[ballast_pre > threshold] = np.nan
+        ballast_post[ballast_post < threshold] = np.nan
+        ballast_diff = ballast_post - ballast_pre
+        cross_over = sum(ballast_diff > 0)
+
         #Create array of divenumbers in order for nrt datasets as all dives are not available. Remove duplicates and sort them
         dive_num=np.sort(np.array(list(set(ds.dive_num.values))))
-        
         for i in dive_num:
             ds_dive=ds.sel(time=ds.dive_num==i)
-            
-            for k in np.arange(len(ds_dive.time)):
-                if k+1 > len(ds_dive.time)-1: #Avoid errors with indexing k+1
-                    break
-                elif (ds_dive.ballast_pos.values[k]-threshold <0) and (ds_dive.ballast_pos.values[k+1]-threshold > 0): #Add a count to cross over threshold, always positive pumping (from below threshold to above)
-                    cross_over=cross_over+1
-    
-            
+
             ds_nav_state=ds_dive.sel(time=ds_dive.nav_state==117) #Select data for navstate 117 only (Glider going up) to avoid ballast surfacing values
         
             if len(ds_dive.sel(time=ds_dive.security_level>0).time) >0: #If there are alarms at this dive, do not include this in avg pumping max or min range
@@ -93,10 +105,8 @@ def ballast_info(glider_serial=44, data_type='nrt', threshold=420):
                 ballast_low_range.append(int(ds_dive.ballast_pos.values.min()))
                 #ds_nav_state_2=ds_dive.sel(time=ds_dive.nav_state==118) #If there are no navstate 117, att max value for navstate 118
                 #ballast_top_range.append(int(ds_nav_state_2.ballast_pos.values.max()))
-        
-    
-        #Calculate average pumping range 
-        pump_range= np.array(ballast_top_range) - np.array(ballast_low_range) 
+        #Calculate average pumping range
+        pump_range= np.array(ballast_top_range) - np.array(ballast_low_range)
         avg_pump_max.append(int(np.nanmean(ballast_top_range)))
         avg_pump_min.append(int(np.nanmean(ballast_low_range)))
         avg_pump_range.append(int(np.nanmean(pump_range)))
@@ -111,7 +121,10 @@ def ballast_info(glider_serial=44, data_type='nrt', threshold=420):
         threshold_value.append(threshold)
         
         # Add string categories: Basin and Mission name & number
-        basin.append(ds.basin)
+        try:
+            basin.append(ds.basin)
+        except:
+            basin.append("")
         ds_name.append(name)
         mission_no.append(ds.deployment_id)
         glider_serial.append(ds.glider_serial)
@@ -126,12 +139,13 @@ def ballast_info(glider_serial=44, data_type='nrt', threshold=420):
     high_volume=np.array(high_volume).astype(int)
 
    
-    df_pumps = pd.DataFrame({'dataset name': ds_name, 'mission no': mission_no, 'glider serial': glider_serial, 
+    df_pumps = pd.DataFrame({'datasetID': ds_name, 'deployment_id': mission_no, 'glider_serial': glider_serial,
                              'total dives': total_dives, 'max ballast (ml)': max_ballast, 'min ballast (ml)': min_ballast, 'avg max pumping value (ml)': avg_pump_max,
                              'std_max': std_pump_max, 'std_min': std_pump_min , 'avg min pumping value (ml)': avg_pump_min, 'avg pumping range (ml)': avg_pump_range, 
                              'times crossing over '+str(threshold)+' ml': cross_over_threshold, 'basin': basin, 'threshold': threshold_value } )
     #'datapoints over '+str(threshold)+' ml': high_volume, 'Ballast positions over '+str(threshold)+' ml (%)' :percent_high_volume,
     return df_pumps
+
 
 def ballast_plots(df_pumps):
     '''
@@ -186,3 +200,24 @@ def ballast_plots(df_pumps):
     ax2.legend()
     
     ax[1].set_xlabel('Mission number')
+
+
+if __name__ == '__main__':
+    from metadata_tables import write_csv
+    outfile = Path("output/ballast.csv")
+    all_delayed = select_datasets(mission_num=None, glider_serial=None, data_type='delayed')
+    for ds_id in all_delayed:
+        to_download = [ds_id]
+        if outfile.exists():
+            df = pd.read_csv(outfile, sep=';')
+            to_download = set(to_download).difference(df['datasetID'].values)
+        else:
+            df = pd.DataFrame()
+        if len(to_download) == 0:
+            print("No datasets found matching supplied arguments")
+        else:
+            df_add = ballast_info(to_download)
+            df = pd.concat((df, df_add))
+            df = df.groupby('datasetID').first()
+            write_csv(df, 'ballast')
+            print(f"added dataset {ds_id}")
