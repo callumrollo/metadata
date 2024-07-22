@@ -204,10 +204,10 @@ def ballast_plots(df_pumps):
 
 if __name__ == '__main__':
     from metadata_tables import write_csv
-    all_glider_datasets = get_glider_dataset_ids()
-    for glider_num in [44, 45, 55, 56, 57, 61, 63, 66, 67, 68, 69, 70, 76, 77, 78, 79]:
-        to_download = select_datasets(mission_num=None, glider_serial=glider_num, data_type='delayed')
-        outfile = Path("output/ballast.csv")
+    outfile = Path("output/ballast.csv")
+    all_delayed = select_datasets(mission_num=None, glider_serial=None, data_type='delayed')
+    for ds_id in all_delayed:
+        to_download = [ds_id]
         if outfile.exists():
             df = pd.read_csv(outfile, sep=';')
             to_download = set(to_download).difference(df['datasetID'].values)
@@ -220,3 +220,4 @@ if __name__ == '__main__':
             df = pd.concat((df, df_add))
             df = df.groupby('datasetID').first()
             write_csv(df, 'ballast')
+            print(f"added dataset {ds_id}")
