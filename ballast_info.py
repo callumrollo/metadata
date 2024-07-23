@@ -2,7 +2,7 @@ from erddapy import ERDDAP
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import utils
+import voto_erddap_utils as utils
 import matplotlib.pyplot as plt
 
 

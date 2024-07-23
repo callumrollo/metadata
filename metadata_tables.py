@@ -1,13 +1,14 @@
-import sys
-import os
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
+from pathlib import Path
+import ballast_info
 import subprocess
-cwdir = os.getcwd()
-sys.path.append(f'{cwdir}/../erddap_demo')
-import utils
+import voto_erddap_utils as utils
 import logging
+import os
+cwdir = os.getcwd()
+
 _log = logging.getLogger(__name__)
 
 
@@ -21,15 +22,7 @@ def write_csv(df, name):
     _log.info(f"sent '{cwdir}/output/{name}.csv to erddap")
 
 
-if __name__ == '__main__':
-    logf = 'metadata_processing.log'
-    logging.basicConfig(filename=logf,
-                        filemode='a',
-                        format='%(asctime)s %(levelname)-8s %(message)s',
-                        level=logging.INFO,
-                        datefmt='%Y-%m-%d %H:%M:%S')
-    _log.info("Start processing")
-
+def meta_proc():
     e = utils.init_erddap()
 
     # Fetch dataset list
@@ -45,7 +38,7 @@ if __name__ == '__main__':
     df_datasets = df_datasets.drop('nrt_SEA057_M75')
     df_datasets = df_datasets.drop('nrt_SEA070_M29')
 
-    #df_datasets = df_datasets.head(3)
+    # df_datasets = df_datasets.head(3)
     _log.info(f"found {len(df_datasets)} datasets")
 
     ds_meta = {}
@@ -126,7 +119,7 @@ if __name__ == '__main__':
     table.deployment_id = range(0, len(missions))
     _log.info(f"Creating users table ")
     for i in range(len(missions)):
-        
+
         d = dic[missions[i]]
         table.glider_serial[i] = f'SEA0{d["glider_serial"]}'
         table.deployment_id[i] = d["deployment_id"]
@@ -158,4 +151,41 @@ if __name__ == '__main__':
 
     write_csv(table, 'users_table')
 
+
+def proc_ballast(missions):
+    outfile = Path("output/ballast.csv")
+    for ds_id in missions:
+        to_download = [ds_id]
+        if outfile.exists():
+            df = pd.read_csv(outfile, sep=';')
+            to_download = set(to_download).difference(df['datasetID'].values)
+        else:
+            df = pd.DataFrame()
+        if len(to_download) == 0:
+            _log.debug("No datasets found matching supplied arguments")
+        else:
+            df_add = ballast_info.ballast_info(to_download)
+            df = pd.concat((df, df_add))
+            df = df.groupby('datasetID').first()
+            write_csv(df, 'ballast')
+            _log.debug(f"Added ballast info for dataset {ds_id}")
+    df = pd.read_csv(outfile, sep=';')
+    _log.info(f"ballast data present for {len(df[df.datasetID.str.contains('nrt')])} nrt datasets")
+    _log.info(f"ballast data present for {len(df[df.datasetID.str.contains('delayed')])} delayed datasets")
+
+
+if __name__ == '__main__':
+    logf = '/home/pipeline/log/metadata_tables.log'
+    logging.basicConfig(filename=logf,
+                        filemode='a',
+                        format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=logging.INFO,
+                        datefmt='%Y-%m-%d %H:%M:%S')
+    _log.info("Start processing")
+    meta_proc()
+    all_nrt = ballast_info.select_datasets(mission_num=None, glider_serial=None, data_type='nrt')
+    all_delayed = ballast_info.select_datasets(mission_num=None, glider_serial=None, data_type='delayed')
+    proc_ballast(all_nrt)
+    proc_ballast(all_delayed)
     _log.info("End processing")
+
