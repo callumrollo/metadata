@@ -39,10 +39,12 @@ def select_datasets(glider_serial=None, mission_num=None, data_type='nrt'):
 
 def ballast_info(glider_datasets, threshold=420):
     ds_dict = utils.download_glider_dataset(glider_datasets, nrt_only=False, variables=(['ballast_pos', 'time', 'dive_num', 'ballast_cmd', 'nav_state', 'security_level']))
-    #Max and min values for the full mission
+    #Max, min and total pumping values for the full mission
     max_ballast=[]
     min_ballast=[]
     total_dives = []
+    total_pump= []
+    max_depth=[]
     
     #Average variables based on each dive in every mission. Range is average range per mission. Upper limit is based off nav state 117
     avg_pump_max =[]
@@ -67,10 +69,42 @@ def ballast_info(glider_datasets, threshold=420):
     
     for name, ds in ds_dict.items():
     
-        #Max and min ballast values per mission and total dives
+        #Max and min ballast values per mission and total dives + total volume pumped for mission
         max_ballast.append(np.nanmax(ds.ballast_pos))
         min_ballast.append(np.nanmin(ds.ballast_pos))
         total_dives.append(ds['dive_num'].values.max())
+
+        max_depth.append(int(np.nanmax(np.abs(ds.depth))))
+        
+        if np.diff(ds.time).mean()<10**8:
+            test=ds.thin({"time": 70}) #.isel(obs=ds.dive_num==528)
+        else:
+            test=ds.thin({"time": 15}) #.isel(obs=ds.dive_num==528)
+        ballast = test.isel(time=np.isfinite(test.ballast_pos.values))
+        ballast= ballast.isel(time=np.isfinite(ballast.ballast_cmd.values))
+        
+        pos=ballast.ballast_pos.values
+        cmd = ballast.ballast_cmd.values
+        
+        #ballast = ballast[~np.isnan(ballast)]
+        pos_pre = pos.copy()[:-1]
+        pos_post = pos.copy()[1:]
+        pos_diff = pos_post - pos_pre
+        
+        #cmd = cmd[~np.isnan(ballast)]
+        cmd_pre = cmd.copy()[:-1]
+        cmd_post = cmd.copy()[1:]
+        cmd_diff = cmd_post - cmd_pre
+
+        noise_threshold_one=5
+        noise_threshold_two=10
+        pos_pump_vol=np.where((pos_diff)>noise_threshold_one, pos_diff, 0)
+        pos_pump_vol_two=np.where((pos_diff)>noise_threshold_two, pos_diff, 0)
+        noise_pump_vol=np.where((pos_diff)>0, pos_diff, 0)
+        
+        #total_pos_ballast=np.sum(noise_pump_vol)
+        total_pump.append(int(np.sum(pos_pump_vol)))
+
     
         #Average max and min pumping
         ballast_top_range=[]
@@ -140,8 +174,8 @@ def ballast_info(glider_datasets, threshold=420):
 
    
     df_pumps = pd.DataFrame({'datasetID': ds_name, 'deployment_id': mission_no, 'glider_serial': glider_serial,
-                             'total dives': total_dives, 'max ballast (ml)': max_ballast, 'min ballast (ml)': min_ballast, 'avg max pumping value (ml)': avg_pump_max,
-                             'std_max': std_pump_max, 'std_min': std_pump_min , 'avg min pumping value (ml)': avg_pump_min, 'avg pumping range (ml)': avg_pump_range, 
+                             'total dives': total_dives, 'max depth (m)': max_depth, 'max ballast (ml)': max_ballast, 'min ballast (ml)': min_ballast, 'avg max pumping value (ml)': avg_pump_max,
+                             'std_max': std_pump_max, 'std_min': std_pump_min , 'avg min pumping value (ml)': avg_pump_min, 'avg pumping range (ml)': avg_pump_range, 'total active pumping (ml)': total_pump, 
                              'times crossing over '+str(threshold)+' ml': cross_over_threshold, 'basin': basin, 'threshold': threshold_value } )
     #'datapoints over '+str(threshold)+' ml': high_volume, 'Ballast positions over '+str(threshold)+' ml (%)' :percent_high_volume,
     return df_pumps
