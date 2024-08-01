@@ -7,7 +7,6 @@ from erddapy import ERDDAP
 from tqdm import tqdm
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-import datetime
 
 cache_dir = pathlib.Path('voto_erddap_data_cache')
 
@@ -52,12 +51,12 @@ def _get_meta_griddap(dataset_id):
     return attrs
 
 
-def etree_to_dict(t):
+def _etree_to_dict(t):
     d = {t.tag: {} if t.attrib else None}
     children = list(t)
     if children:
         dd = defaultdict(list)
-        for dc in map(etree_to_dict, children):
+        for dc in map(_etree_to_dict, children):
             for k, v in dc.items():
                 dd[k].append(v)
         d = {t.tag: {k: v[0] if len(v) == 1 else v
@@ -106,7 +105,7 @@ def date_from_iso(dataset_id):
         file.write(req.text)
     tree = ET.parse('iso.xml')
     root = tree.getroot()
-    ddict = etree_to_dict(root)
+    ddict = _etree_to_dict(root)
     id_info = ddict[list(ddict.keys())[0]]['{http://www.isotc211.org/2005/gmd}identificationInfo'][0]
     citation_info = id_info['{http://www.isotc211.org/2005/gmd}MD_DataIdentification']['{http://www.isotc211.org/2005/gmd}citation']['{http://www.isotc211.org/2005/gmd}CI_Citation']
     date_info = citation_info['{http://www.isotc211.org/2005/gmd}date'][0]['{http://www.isotc211.org/2005/gmd}CI_Date']
@@ -192,11 +191,12 @@ def _cached_dataset_exists(ds_id, request):
         return False
 
     nc_time = pd.to_datetime(stats["date_created"][:-6])
-    created_date = date_from_iso(ds_id)
     try:
+        created_date = date_from_iso(ds_id)
         erddap_time = pd.to_datetime(created_date)
     except:
-        erddap_time = str(datetime.datetime.now())[:10]
+        print(f"Dataset {ds_id} date updated check failed. Will re-download")
+        return False
     if nc_time < erddap_time:
         print(f"Dataset {ds_id} has been updated on ERDDAP")
         return False
