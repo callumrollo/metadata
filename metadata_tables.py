@@ -111,7 +111,7 @@ def meta_proc():
     _log.info(f"merged metadata and attributes ")
     # Create a smaller, more user friendly table
 
-    table = pd.DataFrame(columns=['glider_serial', 'deployment_id', 'basin', 'deployment_start', 'deployment_end',
+    table = pd.DataFrame(columns=['platform_serial', 'deployment_id', 'basin', 'deployment_start', 'deployment_end',
                                   'available_variables', 'science_variables', 'ctd', 'oxygen', 'optics', 'ad2cp',
                                   'irradiance', 'nitrate', 'datasetID'])
     missions = df_datasets.index
@@ -121,7 +121,10 @@ def meta_proc():
     for i in range(len(missions)):
 
         d = dic[missions[i]]
-        table.glider_serial[i] = f'SEA0{d["glider_serial"]}'
+        if 'platform_serial' in d.keys():
+            table.platform_serial[i] = f'{d["platform_serial"]}'
+        else:
+            table.platform_serial[i] = f'SEA0{d["glider_serial"]}'
         table.deployment_id[i] = d["deployment_id"]
         table.deployment_start[i] = d["deployment_start"][:10]
         table.deployment_end[i] = d["deployment_end"][:10]
@@ -183,8 +186,8 @@ if __name__ == '__main__':
                         datefmt='%Y-%m-%d %H:%M:%S')
     _log.info("Start processing")
     meta_proc()
-    all_nrt = ballast_info.select_datasets(mission_num=None, glider_serial=None, data_type='nrt')
-    all_delayed = ballast_info.select_datasets(mission_num=None, glider_serial=None, data_type='delayed')
+    all_nrt = ballast_info.select_datasets(mission_num=None, platform_serial=None, data_type='nrt')
+    all_delayed = ballast_info.select_datasets(mission_num=None, platform_serial=None, data_type='delayed')
     proc_ballast(all_nrt)
     proc_ballast(all_delayed)
     _log.info("End processing")
