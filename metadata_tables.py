@@ -35,8 +35,6 @@ def meta_proc():
     df_datasets.drop("allDatasets", inplace=True)
 
     df_datasets = df_datasets[df_datasets.index.str[:3] == "nrt"]
-    df_datasets = df_datasets.drop('nrt_SEA057_M75')
-    df_datasets = df_datasets.drop('nrt_SEA070_M29')
 
     # df_datasets = df_datasets.head(3)
     _log.info(f"found {len(df_datasets)} datasets")
@@ -133,8 +131,10 @@ def meta_proc():
         table.available_variables[i] = d["variables"]
         table.science_variables[i] = d["variables"]
         table.ctd[i] = d['ctd']
-        table.oxygen[i] = d['oxygen']
-        table.optics[i] = d['optics']
+        if 'optics' in d:
+            table.optics[i] = d['optics']
+        if 'oxygen' in d:
+            table.oxygen[i] = d['oxygen']
         if 'irradiance' in d:
             table.irradiance[i] = d['irradiance']
         if 'AD2CP' in d:

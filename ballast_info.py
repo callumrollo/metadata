@@ -268,8 +268,8 @@ if __name__ == '__main__':
     df = ballast_info(["nrt_SEA069_M37"])
     from metadata_tables import write_csv
     outfile = Path("output/ballast.csv")
-    all_delayed = select_datasets(mission_num=None, glider_serial=None, data_type='nrt')
-    for ds_id in all_delayed:
+    all_nrt = select_datasets(mission_num=None, platform_serial=None, data_type='nrt')
+    for ds_id in all_nrt:
         to_download = [ds_id]
         if outfile.exists():
             df = pd.read_csv(outfile, sep=';')
