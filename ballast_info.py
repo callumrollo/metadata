@@ -12,7 +12,7 @@ def get_glider_dataset_ids():
 
     e.dataset_id = "allDatasets"
     df_datasets = e.to_pandas()['datasetID']
-    df_glider_datasets = df_datasets[df_datasets.str.contains("SEA")]
+    df_glider_datasets = df_datasets[df_datasets.str.contains("_S")]
     return df_glider_datasets
 
 
