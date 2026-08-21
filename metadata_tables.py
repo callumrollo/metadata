@@ -11,9 +11,49 @@ cwdir = os.getcwd()
 
 _log = logging.getLogger(__name__)
 
+def membrane_calculations():
+    e = utils.init_erddap()
+    url = e.get_search_url(search_for="membrane_serial", response="csv")
+    df = pd.read_csv(url)
+    missions=list(df["Dataset ID"])
+    nrt=[]
+    for word in missions:
+        if word.startswith('nrt'):
+            nrt.append(word)
+    ds_dict = utils.download_glider_dataset(nrt, variables=(['time', 'dive_num']), nrt_only=True)
 
-def write_csv(df, name):
-    if not "datasetID" in list(df):
+    membrane_serial = []
+    datasetID = []
+    total_cycles = []
+
+    df_membrane = pd.DataFrame(
+        {'membrane_serial': membrane_serial, 'dataset_ids': datasetID, 'total cycles': total_cycles})
+
+    membrane = []
+    for i in np.arange(len(ds_dict)):
+        ds = ds_dict[nrt[i]]
+        membrane.append(ds.membrane_serial)
+
+    df_membrane['membrane_serial'] = list(set(membrane))  # reduce to only unique membranes in list
+
+    for n in np.arange(len(df_membrane)):
+        df_membrane.loc[n, 'total cycles'] = 0  # make 0 so addition can be used later on with cycles
+        empty_list = []
+        for i in np.arange(len(ds_dict)):
+            ds = ds_dict[nrt[i]]
+            if df_membrane.loc[n, 'membrane_serial'] == ds.membrane_serial:
+                empty_list.append(ds.dataset_id)  # add dataset name to track missions for serial
+
+                df_membrane.loc[n, 'total cycles'] = df_membrane.loc[n, 'total cycles'] + np.max(
+                    ds.dive_num.values)  # add max amount of cycle per mission
+        df_membrane.loc[n, 'dataset_ids'] = str(empty_list)
+    name = 'membrane'
+    write_csv(df_membrane, name, multi_id=True)
+    subprocess.check_call(['/usr/bin/rsync', f'{cwdir}/output/{name}.csv', 'pilot@observations.voiceoftheocean.org:/data/voto/pilot_tables'])
+
+
+def write_csv(df, name, multi_id=False):
+    if not "datasetID" in list(df) and not multi_id:
         df["datasetID"] = df.index
     df = df.convert_dtypes()
     _log.info(f"write {name}.csv")
@@ -177,7 +217,7 @@ def proc_ballast(missions):
     _log.info(f"ballast data present for {len(df[df.datasetID.str.contains('delayed')])} delayed datasets")
 
 
-if __name__ == '__main__':
+def main():
     logf = '/home/pipeline/log/metadata_tables.log'
     logging.basicConfig(filename=logf,
                         filemode='a',
@@ -192,3 +232,5 @@ if __name__ == '__main__':
     proc_ballast(all_delayed)
     _log.info("End processing")
 
+if __name__ == '__main__':
+    membrane_calculations()
