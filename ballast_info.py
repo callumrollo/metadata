@@ -177,7 +177,7 @@ def ballast_info(glider_datasets, threshold=420, noise_threshold=5):
         if "platform_serial" in ds.keys():
             platform_serial.append(ds.platform_serial)
         else:
-            platform_serial.append(f"SEA0{ds.glider_serial}")
+            platform_serial.append(ds.glider_serial)
 
 
     #Make all values integers
@@ -268,7 +268,7 @@ if __name__ == '__main__':
     df = ballast_info(["nrt_SEA069_M37"])
     from metadata_tables import write_csv
     outfile = Path("output/ballast.csv")
-    all_nrt = select_datasets(mission_num=None, platform_serial=None, data_type='nrt')
+    all_nrt = select_datasets(mission_num=None, platform_serial=None, data_type='delayed')
     for ds_id in all_nrt:
         to_download = [ds_id]
         if outfile.exists():
