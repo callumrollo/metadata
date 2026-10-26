@@ -37,7 +37,7 @@ EXTRACTED_COL = "_extracted_at"  # UTC timestamp of extraction
 ERROR_COL = "_error"             # error message if the file could not be read
 BOOKKEEPING_COLS = [PATH_COL, SIZE_COL, MTIME_COL, EXTRACTED_COL, ERROR_COL]
 
-DEFAULT_PATTERNS = ["*.nc"]
+DEFAULT_PATTERNS = "*.nc"
 
 
 # --------------------------------------------------------------------------- #
@@ -64,8 +64,9 @@ def extract_global_attrs(path: Path) -> dict:
             key = f"attr{name}" if name in BOOKKEEPING_COLS else name
             attrs[key] = value
         id_parts = ds.attrs['id'].split('_')
-        attrs['data_mode'] = id_parts[-1]
-        #attrs['erddap_url'] =
+        dataset_id = id_parts[-1]
+        attrs['data_mode'] = dataset_id
+        attrs['erddap_url'] = f"http://136.243.54.252:8082/erddap/tabledap/{dataset_id}.html"
 
         for name, variable in ds.variables.items():
             if name[:6] != 'SENSOR':
@@ -82,7 +83,7 @@ def process_file(job: tuple[str, str, int, int]) -> dict:
     """Build one table row for a file. Top-level function so it can be pickled."""
     abs_path, rel_path, size, mtime_ns = job
     row = {
-        PATH_COL: rel_path,
+        PATH_COL: abs_path,
         SIZE_COL: size,
         MTIME_COL: mtime_ns,
         EXTRACTED_COL: datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -98,10 +99,10 @@ def process_file(job: tuple[str, str, int, int]) -> dict:
 # --------------------------------------------------------------------------- #
 # File discovery and table I/O
 # --------------------------------------------------------------------------- #
-def scan_files(root: Path, patterns: list[str]) -> dict[str, tuple[str, int, int]]:
+def scan_files(roots: list[Path], pattern: str) -> dict[str, tuple[str, int, int]]:
     """Recursively find NetCDF files. Returns {relative_path: (abs_path, size, mtime_ns)}."""
     found = {}
-    for pattern in patterns:
+    for root in roots:
         for p in root.rglob(pattern):
             if p.is_file():
                 st = p.stat()
@@ -132,11 +133,6 @@ def save_table(df: pd.DataFrame, path: Path) -> None:
     else:
         df.to_csv(tmp, index=False)
     os.replace(tmp, path)
-    if path.suffix == '.csv':
-        path_out = str(path).replace('meta', 'meta_pub')
-        keeps = [col for col in list(df) if col[0] != '_']
-        df = df[keeps]
-        df.to_csv(path_out, index=False)
 
 
 
@@ -144,7 +140,7 @@ def save_table(df: pd.DataFrame, path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # Incremental update
 # --------------------------------------------------------------------------- #
-def update_metadata(root: Path, table_path: Path, patterns: list[str],
+def update_metadata(root: list[Path], table_path: Path, patterns: str,
                     workers: int = 1, force: bool = False) -> pd.DataFrame:
     existing = load_table(table_path)
     on_disk = scan_files(root, patterns)
@@ -244,7 +240,7 @@ def main(argv=None) -> int:
     return 0
 
 def run_local():
-    update_metadata(Path("/data/data_l0_pyglider/OG_nrt/"), Path("meta.csv"), ['*.nc'], workers=8, force=True)
+    update_metadata([Path("/data/OG_nrt"), Path("/data/OG_complete")], Path("/data/meta/meta_og1.csv"), '*.nc', workers=8, force=True)
 
 
 if __name__ == "__main__":
