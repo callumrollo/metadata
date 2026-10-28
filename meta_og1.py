@@ -240,7 +240,15 @@ def main(argv=None) -> int:
     return 0
 
 def run_local():
+    logf = '/data/log/metadata_tables.log'
+    logging.basicConfig(filename=logf,
+                        filemode='a',
+                        format='%(asctime)s %(levelname)-8s %(message)s',
+                        level=logging.INFO,
+                        datefmt='%Y-%m-%d %H:%M:%S')
+    log.info("Started")
     update_metadata([Path("/data/OG_nrt"), Path("/data/OG_complete")], Path("/data/meta/meta_og1.csv"), '*.nc', workers=8, force=True)
+    log.info("Complete")
 
 
 if __name__ == "__main__":
